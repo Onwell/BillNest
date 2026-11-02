@@ -1,4 +1,35 @@
-<?php session_start(); $loggedIn = isset($_SESSION['user_id']); $userName = $_SESSION['user_name'] ?? ''; ?>
+<?php
+session_start();
+define('DB_QUIET', true);
+require __DIR__ . '/db.php';
+
+$loggedIn = isset($_SESSION['user_id']);
+$userName = $_SESSION['user_name'] ?? '';
+$userRole = $_SESSION['user_role'] ?? '';
+
+// All figures shown on this page come from the database
+$totalUsers  = null;
+$adminUsers  = null;
+$newThisMonth = null;
+$recentUsers = [];
+
+if ($conn) {
+    try {
+        $totalUsers   = (int) $conn->query("SELECT COUNT(*) AS c FROM users")->fetch_assoc()['c'];
+        $adminUsers   = (int) $conn->query("SELECT COUNT(*) AS c FROM users WHERE role = 'admin'")->fetch_assoc()['c'];
+        $newThisMonth = (int) $conn->query("SELECT COUNT(*) AS c FROM users WHERE created_at >= DATE_FORMAT(NOW(), '%Y-%m-01')")->fetch_assoc()['c'];
+
+        // Personal details are only shown to signed-in admins
+        if ($loggedIn && $userRole === 'admin') {
+            $res = $conn->query("SELECT full_name, role, created_at FROM users ORDER BY created_at DESC, id DESC LIMIT 4");
+            while ($row = $res->fetch_assoc()) { $recentUsers[] = $row; }
+        }
+    } catch (Throwable $e) {
+        // leave values as null; the page shows a dash
+    }
+}
+function stat($v) { return $v === null ? '—' : number_format($v); }
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1535,7 +1566,6 @@
                 <a href="#features">Features</a>
                 <a href="#how-it-works">How it works</a>
                 <a href="#pricing">Pricing</a>
-                <a href="#stories">Stories</a>
                 <a href="#faq">FAQ</a>
             </nav>
             <div class="nav-actions">
@@ -1573,28 +1603,20 @@
                 </div>
                 <div class="hero-stats">
                     <div class="stat-item">
-                        <strong>12,400+</strong>
-                        <span>invoices sent monthly</span>
+                        <strong><?= stat($totalUsers) ?></strong>
+                        <span>registered users</span>
                     </div>
                     <div class="stat-item">
-                        <strong>9 days</strong>
-                        <span>faster average payment</span>
+                        <strong><?= stat($adminUsers) ?></strong>
+                        <span>admin accounts</span>
                     </div>
                     <div class="stat-item">
-                        <strong>4.9/5</strong>
-                        <span>from 300 reviews</span>
+                        <strong><?= stat($newThisMonth) ?></strong>
+                        <span>joined this month</span>
                     </div>
                 </div>
             </div>
             <div class="hero-image-wrapper">
-                <div class="floating-badge badge-1">
-                    <svg class="icon icon-sm" style="color: #10b981;" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                    Payment received
-                </div>
-                <div class="floating-badge badge-2">
-                    <svg class="icon icon-sm" style="color: #f59e0b;" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                    Reminder scheduled
-                </div>
                 
                 <div class="mockup-container">
                     <div class="mockup-header">
@@ -1623,67 +1645,46 @@
                         <div class="mockup-main">
                             <div class="mockup-top-row">
                                 <div class="mockup-card">
-                                    <div class="mockup-card-title">Total Revenue</div>
-                                    <div class="mockup-card-value">$24,120.00</div>
-                                    <div class="mockup-card-sub">+12% from last month</div>
+                                    <div class="mockup-card-title">Total Users</div>
+                                    <div class="mockup-card-value"><?= stat($totalUsers) ?></div>
+                                    <div class="mockup-card-sub"><?= stat($adminUsers) ?> admin accounts</div>
                                 </div>
                                 <div class="mockup-card">
-                                    <div class="mockup-card-title">Outstanding</div>
-                                    <div class="mockup-card-value">$8,450.00</div>
-                                    <div class="mockup-card-sub" style="color: #f59e0b;">4 invoices pending</div>
+                                    <div class="mockup-card-title">New This Month</div>
+                                    <div class="mockup-card-value"><?= stat($newThisMonth) ?></div>
+                                    <div class="mockup-card-sub" style="color: #f59e0b;"><?= date('F Y') ?></div>
                                 </div>
                             </div>
                             <div class="mockup-card" style="padding: 16px;">
-                                <div class="mockup-card-title" style="margin-bottom: 12px;">Recent Invoices</div>
+                                <div class="mockup-card-title" style="margin-bottom: 12px;">Recent Sign-ups</div>
                                 <table class="mockup-table">
                                     <thead>
                                         <tr>
-                                            <th>Client</th>
-                                            <th>Amount</th>
-                                            <th>Status</th>
+                                            <th>Name</th>
+                                            <th>Joined</th>
+                                            <th>Role</th>
                                         </tr>
                                     </thead>
                                     <tbody>
+                                        <?php if (!$loggedIn || $userRole !== 'admin'): ?>
+                                        <tr><td colspan="3">Sign in as an admin to view recent sign-ups.</td></tr>
+                                        <?php elseif (empty($recentUsers)): ?>
+                                        <tr><td colspan="3">No users yet.</td></tr>
+                                        <?php else: ?>
+                                        <?php foreach ($recentUsers as $u): ?>
                                         <tr>
-                                            <td>Northwind Logistics</td>
-                                            <td>$4,500</td>
-                                            <td><span class="status-badge status-paid">Paid</span></td>
+                                            <td><?= htmlspecialchars($u['full_name']) ?></td>
+                                            <td><?= htmlspecialchars(date('M j', strtotime($u['created_at']))) ?></td>
+                                            <td><span class="status-badge <?= $u['role'] === 'admin' ? 'status-paid' : 'status-draft' ?>"><?= htmlspecialchars(ucfirst($u['role'])) ?></span></td>
                                         </tr>
-                                        <tr>
-                                            <td>Kada Studio</td>
-                                            <td>$1,200</td>
-                                            <td><span class="status-badge status-pending">Pending</span></td>
-                                        </tr>
-                                        <tr>
-                                            <td>Boobab Capital</td>
-                                            <td>$2,800</td>
-                                            <td><span class="status-badge status-paid">Paid</span></td>
-                                        </tr>
-                                        <tr>
-                                            <td>Zambezi Foods</td>
-                                            <td>$950</td>
-                                            <td><span class="status-badge status-draft">Draft</span></td>
-                                        </tr>
+                                        <?php endforeach; ?>
+                                        <?php endif; ?>
                                     </tbody>
                                 </table>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Logos Section -->
-    <section class="logos-section animate-on-scroll">
-        <div class="container">
-            <p>TRUSTED BY FINANCE AND OPS TEAMS AT</p>
-            <div class="logos-grid">
-                <span>Northwind</span>
-                <span>Kada</span>
-                <span>Boobab</span>
-                <span>Miterlian</span>
-                <span>Zambezi</span>
             </div>
         </div>
     </section>
@@ -1845,70 +1846,6 @@
         </div>
     </section>
 
-    <!-- Testimonials Section -->
-    <section id="stories" class="testimonials-section">
-        <div class="container">
-            <div class="section-header animate-on-scroll">
-                <span class="section-tag">CUSTOMER STORIES</span>
-                <h2>Teams that stopped chasing payments</h2>
-                <p>Real feedback from small businesses using BillNest every week.</p>
-            </div>
-            <div class="testimonials-grid">
-                <div class="testimonial-card animate-on-scroll" style="transition-delay: 0.1s;">
-                    <div class="stars">
-                        <svg class="icon icon-sm" fill="currentColor" viewBox="0 0 24 24" stroke="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                        <svg class="icon icon-sm" fill="currentColor" viewBox="0 0 24 24" stroke="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                        <svg class="icon icon-sm" fill="currentColor" viewBox="0 0 24 24" stroke="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                        <svg class="icon icon-sm" fill="currentColor" viewBox="0 0 24 24" stroke="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                        <svg class="icon icon-sm" fill="currentColor" viewBox="0 0 24 24" stroke="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                    </div>
-                    <p class="quote">"We cut our average payment time from 32 days to 9. The reminders alone paid for the subscription in the first week."</p>
-                    <div class="author">
-                        <div class="avatar">TN</div>
-                        <div class="author-info">
-                            <h4>Tomasz Nowak</h4>
-                            <p>Operations Lead, Studio Kreska</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="testimonial-card animate-on-scroll" style="transition-delay: 0.2s;">
-                    <div class="stars">
-                        <svg class="icon icon-sm" fill="currentColor" viewBox="0 0 24 24" stroke="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                        <svg class="icon icon-sm" fill="currentColor" viewBox="0 0 24 24" stroke="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                        <svg class="icon icon-sm" fill="currentColor" viewBox="0 0 24 24" stroke="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                        <svg class="icon icon-sm" fill="currentColor" viewBox="0 0 24 24" stroke="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                        <svg class="icon icon-sm" fill="currentColor" viewBox="0 0 24 24" stroke="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                    </div>
-                    <p class="quote">"The dashboard finally shows me what I actually need: what's paid, what's pending, and what's late. Nothing else."</p>
-                    <div class="author">
-                        <div class="avatar">GP</div>
-                        <div class="author-info">
-                            <h4>Grace Patel</h4>
-                            <p>Owner, Zambezi Foods</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="testimonial-card animate-on-scroll" style="transition-delay: 0.3s;">
-                    <div class="stars">
-                        <svg class="icon icon-sm" fill="currentColor" viewBox="0 0 24 24" stroke="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                        <svg class="icon icon-sm" fill="currentColor" viewBox="0 0 24 24" stroke="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                        <svg class="icon icon-sm" fill="currentColor" viewBox="0 0 24 24" stroke="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                        <svg class="icon icon-sm" fill="currentColor" viewBox="0 0 24 24" stroke="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                        <svg class="icon icon-sm" fill="currentColor" viewBox="0 0 24 24" stroke="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                    </div>
-                    <p class="quote">"Our accountant logs in as a viewer and reconciles everything in minutes. No more monthly zip files of PDFs."</p>
-                    <div class="author">
-                        <div class="avatar">SO</div>
-                        <div class="author-info">
-                            <h4>Sam Okafor</h4>
-                            <p>Operations Manager, Northwind Logistics</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
     <!-- FAQ Section -->
     <section id="faq" class="faq-section">
         <div class="container">
@@ -2015,7 +1952,6 @@
                     <h4>COMPANY</h4>
                     <ul>
                         <li><a href="#">About</a></li>
-                        <li><a href="#stories">Customers</a></li>
                         <li><a href="#">Careers</a></li>
                         <li><a href="#">Contact</a></li>
                         <li><a href="#">Press</a></li>
