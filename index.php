@@ -1,3 +1,4 @@
+<?php session_start(); $loggedIn = isset($_SESSION['user_id']); $userName = $_SESSION['user_name'] ?? ''; ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1132,7 +1133,23 @@
             color: var(--text-main);
         }
 
-        /* ===================================================== */
+        .auth-message {
+            padding: 11px 14px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            text-align: center;
+        }
+        .auth-message[hidden] { display: none; }
+        .auth-message.success {
+            color: #065f46;
+            background: #d1fae5;
+        }
+        .auth-message.error {
+            color: #991b1b;
+            background: #fee2e2;
+        }
+
         /* --- AUTH MODAL (Login / Sign up pop-up) --- */
         /* ===================================================== */
         .auth-modal-overlay {
@@ -1522,11 +1539,16 @@
                 <a href="#faq">FAQ</a>
             </nav>
             <div class="nav-actions">
+                <?php if ($loggedIn): ?>
+                <span class="nav-signin" style="cursor: default;">Hi, <?= htmlspecialchars($userName) ?></span>
+                <button type="button" class="btn btn-primary" id="logoutBtn">Log out</button>
+                <?php else: ?>
                 <button type="button" class="nav-signin" data-auth-open="signin">Sign in</button>
                 <button type="button" class="btn btn-primary" data-auth-open="signup">
                     Start free 
                     <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                 </button>
+                <?php endif; ?>
             </div>
         </div>
     </header>
@@ -2048,13 +2070,14 @@
             <!-- SIGN IN PANEL -->
             <div id="auth-panel-signin" class="auth-panel active" role="tabpanel">
                 <form class="auth-form" data-auth-form="signin">
+                    <div class="auth-message" data-auth-message role="status" aria-live="polite" hidden></div>
                     <div class="form-group">
                         <label for="auth-signin-email">Email address</label>
-                        <input type="email" id="auth-signin-email" placeholder="you@company.com" required>
+                        <input type="email" id="auth-signin-email" name="email" placeholder="you@company.com" required>
                     </div>
                     <div class="form-group">
                         <label for="auth-signin-password">Password</label>
-                        <input type="password" id="auth-signin-password" placeholder="••••••••" required>
+                        <input type="password" id="auth-signin-password" name="password" placeholder="••••••••" required>
                     </div>
                     <div class="auth-forgot-row">
                         <a href="#" data-auth-forgot>Forgot password?</a>
@@ -2087,17 +2110,18 @@
             <!-- SIGN UP PANEL -->
             <div id="auth-panel-signup" class="auth-panel" role="tabpanel">
                 <form class="auth-form" data-auth-form="signup">
+                    <div class="auth-message" data-auth-message role="status" aria-live="polite" hidden></div>
                     <div class="form-group">
                         <label for="auth-signup-name">Full name</label>
-                        <input type="text" id="auth-signup-name" placeholder="Alex Rivera" required>
+                        <input type="text" id="auth-signup-name" name="name" placeholder="Alex Rivera" required>
                     </div>
                     <div class="form-group">
                         <label for="auth-signup-email">Work email</label>
-                        <input type="email" id="auth-signup-email" placeholder="alex@company.com" required>
+                        <input type="email" id="auth-signup-email" name="email" placeholder="alex@company.com" required>
                     </div>
                     <div class="form-group">
                         <label for="auth-signup-password">Password</label>
-                        <input type="password" id="auth-signup-password" placeholder="Create a strong password" required>
+                        <input type="password" id="auth-signup-password" name="password" placeholder="Create a strong password" required>
                         <span style="font-size: 0.7rem; color: var(--text-muted); margin-top: 2px;">Must be at least 8 characters</span>
                     </div>
                     <button type="submit" class="auth-submit-btn" style="margin-top: 6px;">
@@ -2250,14 +2274,57 @@
                 });
             });
 
-            // Form submissions (demo)
+            function showAuthMessage(form, message, type) {
+                const messageElement = form.querySelector('[data-auth-message]');
+                messageElement.textContent = message;
+                messageElement.className = 'auth-message ' + type;
+                messageElement.hidden = false;
+            }
+
+            async function submitAuth(form, action) {
+                const btn = form.querySelector('button[type="submit"]');
+                const data = new FormData(form);
+                data.append('action', action);
+
+                btn.disabled = true;
+                try {
+                    const res = await fetch('auth.php', { method: 'POST', body: data });
+                    const json = await res.json();
+                    if (action === 'register' && json.success) {
+                        form.reset();
+                        btn.disabled = false;
+                        switchAuthTab('signin');
+                        const signInForm = document.querySelector('[data-auth-form="signin"]');
+                        showAuthMessage(signInForm, json.message, 'success');
+                        return;
+                    }
+
+                    showAuthMessage(form, json.message, json.success ? 'success' : 'error');
+                    if (json.success && json.redirect) {
+                        setTimeout(() => { window.location.href = json.redirect; }, 1200);
+                        return;
+                    }
+                } catch (err) {
+                    showAuthMessage(form, 'Something went wrong. Please try again.', 'error');
+                }
+                btn.disabled = false;
+            }
+
             document.querySelector('[data-auth-form="signin"]').addEventListener('submit', (e) => {
                 e.preventDefault();
-                alert('Sign in demo — in production this would authenticate.');
+                submitAuth(e.target, 'login');
             });
             document.querySelector('[data-auth-form="signup"]').addEventListener('submit', (e) => {
                 e.preventDefault();
-                alert('Account created — this is a demo. Welcome to BillNest!');
+                submitAuth(e.target, 'register');
+            });
+
+            // Logout
+            document.getElementById('logoutBtn')?.addEventListener('click', async () => {
+                const data = new FormData();
+                data.append('action', 'logout');
+                await fetch('auth.php', { method: 'POST', body: data });
+                window.location.reload();
             });
 
             // Forgot password demo
