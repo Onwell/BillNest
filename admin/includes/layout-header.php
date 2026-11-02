@@ -2,6 +2,13 @@
 if (!isset($pageId, $pageTitle, $pageSubtitle)) {
     throw new RuntimeException('Admin page metadata is required.');
 }
+if (session_status() !== PHP_SESSION_ACTIVE) {
+    session_start();
+}
+$adminName = trim((string) ($_SESSION['user_name'] ?? 'Administrator'));
+$adminNameParts = preg_split('/\s+/', $adminName, -1, PREG_SPLIT_NO_EMPTY);
+$adminInitials = strtoupper(substr($adminNameParts[0] ?? 'A', 0, 1) . (count($adminNameParts) > 1 ? substr(end($adminNameParts), 0, 1) : ''));
+$adminRole = ucfirst((string) ($_SESSION['user_role'] ?? 'admin'));
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -503,10 +510,10 @@ if (!isset($pageId, $pageTitle, $pageSubtitle)) {
 
         <div class="side-footer">
             <div class="admin-card">
-                <div class="admin-av">SA</div>
+                <div class="admin-av"><?= htmlspecialchars($adminInitials, ENT_QUOTES, 'UTF-8') ?></div>
                 <div class="admin-info">
-                    <strong>Sarah Adeyemi</strong>
-                    <span>Super Admin</span>
+                    <strong><?= htmlspecialchars($adminName, ENT_QUOTES, 'UTF-8') ?></strong>
+                    <span><?= htmlspecialchars($adminRole, ENT_QUOTES, 'UTF-8') ?></span>
                 </div>
             </div>
         </div>
@@ -543,6 +550,7 @@ if (!isset($pageId, $pageTitle, $pageSubtitle)) {
                 <button class="icon-btn" aria-label="Help">
                     <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                 </button>
+                <button class="btn btn-outline btn-sm" type="button" id="logoutBtn">Logout</button>
             </div>
         </header>
 

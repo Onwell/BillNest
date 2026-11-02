@@ -15,6 +15,24 @@ document.addEventListener('DOMContentLoaded', () => {
     burger.addEventListener('click', () => sidebar.classList.contains('open') ? closeSidebar() : openSidebar());
     overlay.addEventListener('click', closeSidebar);
 
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+        if (!window.confirm('Are you sure you want to log out?')) return;
+
+        const data = new FormData();
+        data.append('action', 'logout');
+
+        try {
+            const response = await fetch('../auth.php', { method: 'POST', body: data });
+            const result = await response.json();
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || 'Logout failed.');
+            }
+            window.location.assign('../index.php');
+        } catch (error) {
+            alert(error instanceof Error ? error.message : 'Logout failed.');
+        }
+    });
+
     document.querySelectorAll('.chips').forEach(group => {
         const chips = group.querySelectorAll('.chip');
         chips.forEach(c => c.addEventListener('click', () => {

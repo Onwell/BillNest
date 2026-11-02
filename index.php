@@ -28,7 +28,7 @@ if ($conn) {
         // leave values as null; the page shows a dash
     }
 }
-function stat($v) { return $v === null ? '—' : number_format($v); }
+function format_stat($v) { return $v === null ? '—' : number_format($v); }
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -1603,15 +1603,15 @@ function stat($v) { return $v === null ? '—' : number_format($v); }
                 </div>
                 <div class="hero-stats">
                     <div class="stat-item">
-                        <strong><?= stat($totalUsers) ?></strong>
+                        <strong><?= format_stat($totalUsers) ?></strong>
                         <span>registered users</span>
                     </div>
                     <div class="stat-item">
-                        <strong><?= stat($adminUsers) ?></strong>
+                        <strong><?= format_stat($adminUsers) ?></strong>
                         <span>admin accounts</span>
                     </div>
                     <div class="stat-item">
-                        <strong><?= stat($newThisMonth) ?></strong>
+                        <strong><?= format_stat($newThisMonth) ?></strong>
                         <span>joined this month</span>
                     </div>
                 </div>
@@ -1646,12 +1646,12 @@ function stat($v) { return $v === null ? '—' : number_format($v); }
                             <div class="mockup-top-row">
                                 <div class="mockup-card">
                                     <div class="mockup-card-title">Total Users</div>
-                                    <div class="mockup-card-value"><?= stat($totalUsers) ?></div>
-                                    <div class="mockup-card-sub"><?= stat($adminUsers) ?> admin accounts</div>
+                                    <div class="mockup-card-value"><?= format_stat($totalUsers) ?></div>
+                                    <div class="mockup-card-sub"><?= format_stat($adminUsers) ?> admin accounts</div>
                                 </div>
                                 <div class="mockup-card">
                                     <div class="mockup-card-title">New This Month</div>
-                                    <div class="mockup-card-value"><?= stat($newThisMonth) ?></div>
+                                    <div class="mockup-card-value"><?= format_stat($newThisMonth) ?></div>
                                     <div class="mockup-card-sub" style="color: #f59e0b;"><?= date('F Y') ?></div>
                                 </div>
                             </div>
