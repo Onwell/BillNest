@@ -2,7 +2,7 @@
 $pageId = 'users';
 $pageTitle = 'Users & roles';
 $pageSubtitle = 'All platform accounts and their permissions.';
-require dirname(__DIR__) . '/db.php';
+require_once dirname(__DIR__) . '/db.php';
 $users = $conn->query('SELECT full_name, email, business_name, role FROM users ORDER BY full_name')->fetch_all(MYSQLI_ASSOC);
 require __DIR__ . '/includes/layout-header.php';
 ?>

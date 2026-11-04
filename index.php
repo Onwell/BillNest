@@ -6,6 +6,19 @@ require __DIR__ . '/db.php';
 $loggedIn = isset($_SESSION['user_id']);
 $userName = $_SESSION['user_name'] ?? '';
 $userRole = $_SESSION['user_role'] ?? '';
+$userEmail = $_SESSION['user_email'] ?? null;
+
+if ($loggedIn && $conn instanceof mysqli) {
+    require_once __DIR__ . '/activity_log.php';
+    log_user_activity(
+        $conn,
+        'page_view',
+        (int) $_SESSION['user_id'],
+        $userName,
+        $userEmail,
+        'Viewed the BillNest home page.'
+    );
+}
 
 // All figures shown on this page come from the database
 $totalUsers  = null;

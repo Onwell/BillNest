@@ -2,6 +2,21 @@
 if (!isset($pageId, $pageTitle, $pageSubtitle)) {
     throw new RuntimeException('User page metadata is required.');
 }
+if (session_status() !== PHP_SESSION_ACTIVE) {
+    session_start();
+}
+require_once dirname(__DIR__, 2) . '/db.php';
+require_once dirname(__DIR__, 2) . '/activity_log.php';
+if (isset($_SESSION['user_id'])) {
+    log_user_activity(
+        $conn,
+        'page_view',
+        (int) $_SESSION['user_id'],
+        $_SESSION['user_name'] ?? null,
+        $_SESSION['user_email'] ?? null,
+        'Viewed user page: ' . $pageTitle
+    );
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">

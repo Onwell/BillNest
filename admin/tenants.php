@@ -2,7 +2,7 @@
 $pageId = 'tenants';
 $pageTitle = 'Tenant directory';
 $pageSubtitle = 'Every business using BillNest and their billing health.';
-require dirname(__DIR__) . '/db.php';
+require_once dirname(__DIR__) . '/db.php';
 $tenants = $conn->query("SELECT business_name, COUNT(*) AS user_count FROM users WHERE business_name IS NOT NULL AND TRIM(business_name) <> '' GROUP BY business_name ORDER BY business_name")->fetch_all(MYSQLI_ASSOC);
 require __DIR__ . '/includes/layout-header.php';
 ?>

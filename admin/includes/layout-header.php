@@ -5,10 +5,22 @@ if (!isset($pageId, $pageTitle, $pageSubtitle)) {
 if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
 }
+require_once dirname(__DIR__, 2) . '/db.php';
+require_once dirname(__DIR__, 2) . '/activity_log.php';
 $adminName = trim((string) ($_SESSION['user_name'] ?? 'Administrator'));
 $adminNameParts = preg_split('/\s+/', $adminName, -1, PREG_SPLIT_NO_EMPTY);
 $adminInitials = strtoupper(substr($adminNameParts[0] ?? 'A', 0, 1) . (count($adminNameParts) > 1 ? substr(end($adminNameParts), 0, 1) : ''));
 $adminRole = ucfirst((string) ($_SESSION['user_role'] ?? 'admin'));
+if (isset($_SESSION['user_id'])) {
+    log_user_activity(
+        $conn,
+        'page_view',
+        (int) $_SESSION['user_id'],
+        $_SESSION['user_name'] ?? null,
+        $_SESSION['user_email'] ?? null,
+        'Viewed admin page: ' . $pageTitle
+    );
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
